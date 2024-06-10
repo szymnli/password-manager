@@ -1,4 +1,4 @@
-import click, json
+import click, json, clipboard
 
 
 class Vault:
@@ -11,6 +11,9 @@ class Vault:
 
     def get_password(self, service):
         return self.passwords[service]
+
+    def delete_password(self, service):
+        del self.passwords[service]
 
     def authenticate(self, value):
         return value == self.master_key
@@ -49,15 +52,18 @@ class Vault:
 
 
 def main():
-    click.clear()
-
-    vault = start()
-
-    if authenticate(vault):
-        print("Authenticated")
-        menu(vault)
-    else:
-        print("Not authenticated")
+    auth = False
+    while not auth:
+        click.clear()
+        vault = start()
+        if authenticate(vault):
+            click.secho("Authentication successful", fg="green")
+            click.pause()
+            menu(vault)
+            auth = True
+        else:
+            click.secho("Invalid master key", fg="red")
+            click.pause(info="Press any key to try again...")
 
 
 def start():
@@ -82,7 +88,9 @@ def start():
 
 
 def first_time():
-    master_pass = click.prompt("Create your master password", hide_input=True)
+    master_pass = click.prompt(
+        "Create your master password", hide_input=True, confirmation_prompt=True
+    )
     with open(".master.json", "w") as file:
         json.dump(master_pass, file)
     return Vault(master_pass), master_pass
@@ -91,10 +99,11 @@ def first_time():
 def menu(vault):
     while True:
         click.clear()
+        click.secho("Main Menu", fg="magenta")
         click.echo("1. Add password")
         click.echo("2. Get password")
         click.echo("3. List services")
-        click.echo("0. Exit")
+        click.secho("0. Exit", fg="blue")
         click.secho("Enter an option: ", nl=False, fg="blue")
         option = click.getchar()
 
@@ -113,35 +122,106 @@ def menu(vault):
                 click.pause()
 
 
+def service_menu(vault, service):
+    while True:
+        click.clear()
+        click.secho(service, fg="magenta")
+        click.secho(f"Username: {vault.passwords[service]["Username"]}", fg="magenta")
+        click.echo("1. Show password")
+        click.echo("2. Copy to clipboard")
+        click.echo("3. Edit password")
+        click.echo("4. Delete password")
+        click.secho("0. Go back", fg="blue")
+        click.secho("Enter an option: ", nl=False, fg="blue")
+        option = click.getchar()
+
+        match option:
+            case "1":
+                click.secho(f"\nPassword: {vault.passwords[service]['Password']}", fg="yellow")
+                click.pause()
+            case "2":
+                clipboard.copy(vault.passwords[service]["Password"])
+                click.secho("\nPassword copied to clipboard!", fg="yellow")
+                click.pause()
+            case "3":
+                add_password(vault, service)
+            case "4":
+                click.clear()
+                click.secho(
+                    f"Are you sure you want to delete password for {service}?", fg="red"
+                )
+                click.echo("1. Yes")
+                click.echo("2. No")
+                while True:
+                    match click.getchar():
+                        case "1":
+                            vault.delete_password(service)
+                            with open(".vault.json", "w") as file:
+                                json.dump(vault.passwords, file, indent=4)
+                            click.secho("Password deleted successfully", fg="green")
+                            click.pause()
+                            return
+                        case "2":
+                            break
+                        case _:
+                            click.secho("Invalid option", fg="red")
+
+            case "0":
+                click.clear()
+                return
+            case _:
+                click.secho("\nInvalid option", fg="red")
+                click.pause()
+
+
 def list_services(vault):
     click.clear()
+    click.secho("Services", fg="magenta")
     if not vault.passwords:
         click.secho("No services found", fg="red")
         click.pause()
         return
     for i, service in enumerate(vault.passwords):
         click.echo(f"{i+1}. {service}")
-    click.pause()
 
+    click.secho("0. Go back", fg="blue")
+    choice = click.prompt(
+        click.style(f"Choose a service to view details [1-{len(vault.passwords)}]", fg="blue"),
+        type=click.IntRange(0, len(vault.passwords)),
+    )
 
-def add_password(vault):
-    click.clear()
-    service = click.prompt("Enter the service")
-    if service in vault.passwords:
-        click.secho("Service already exists", fg="red")
-        click.pause()
+    if choice != 0:
+        service = list(vault.passwords.keys())[choice - 1]
+        service_menu(vault, service)
+    else:
         return
+
+
+def add_password(vault, _service=None):
+    click.clear()
+    if _service:
+        click.secho(f"Edit {_service}", fg="magenta")
+        service = _service
+    else:
+        click.secho("Add password", fg="magenta")
+        service = click.prompt("Enter the service")
+        if service in vault.passwords:
+            click.secho("Service already exists", fg="red")
+            click.pause()
+            return
     username = click.prompt("Enter the username")
     click.echo("1. Enter the password")
     click.echo("2. Generate a strong password")
     while True:
         match click.getchar():
             case "1":
-                password = click.prompt("Enter the password", hide_input=True)
+                password = click.prompt(
+                    "Enter the password", hide_input=True, confirmation_prompt=True
+                )
                 break
             case "2":
                 password = "StrongPassword123!"
-                click.secho(f"Generated password: {password}", fg="green")
+                click.secho(f"Generated password: {password}", fg="green") # TODO: Implement password generator
                 break
             case _:
                 click.secho("Invalid option", fg="red")
@@ -156,14 +236,16 @@ def add_password(vault):
 
 def get_password(vault):
     click.clear()
-    service = click.prompt("Enter the service")
-    if service not in vault.passwords:
-        click.secho("Service not found", fg="red")
-        click.pause()
-        return
+    click.secho("Get password", fg="magenta")
+    while True:
+        service = click.prompt("Enter the service")
+        if service not in vault.passwords:
+            click.secho("Service not found", fg="red")
+        else:
+            break
     passw = vault.get_password(service)
     click.clear()
-    click.secho(f"Service: {service}", bold=True)
+    click.secho(service, fg="magenta")
     click.echo(f"Username: {passw['Username']}")
     click.echo(f"Password: {passw['Password']}")
     click.pause()
