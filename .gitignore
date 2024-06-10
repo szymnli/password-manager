@@ -163,4 +163,5 @@ cython_debug/
 #.idea/
 
 # vault
-vault.json
+.vault.json
+.master.json

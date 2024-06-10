@@ -52,21 +52,50 @@ class Vault:
 
 def main():
     click.clear()
-    master_pass = "1234"
-    print("Welcome to the password manager")
+    # master_pass = "1234"
+    # print("Welcome to the password manager")
 
-    try:
-        with open("vault.json") as file:
-            passwords = json.load(file)
-            vault = Vault(master_pass, passwords)
-    except FileNotFoundError:
-        vault = Vault(master_pass)
+    # try:
+    #     with open(".vault.json") as file:
+    #         passwords = json.load(file)
+    #         vault = Vault(master_pass, passwords)
+    # except FileNotFoundError:
+    #     vault = Vault(master_pass)
+
+    vault = start()
 
     if authenticate(vault):
         print("Authenticated")
         menu(vault)
     else:
         print("Not authenticated")
+
+def start():
+    click.clear()
+    click.secho("Welcome to the password manager", fg="magenta")
+
+    try:
+        with open(".master.json") as file:
+            master_pass = json.load(file)
+    except FileNotFoundError:
+        vault, master_pass = first_time()
+
+    try:
+        with open(".vault.json") as file:
+            passwords = json.load(file)
+            vault = Vault(master_pass, passwords)
+    except FileNotFoundError:
+        with open(".vault.json", "w") as file:
+            json.dump({}, file)
+
+    return vault
+
+def first_time():
+    master_pass = click.prompt("Create your master password", hide_input=True)
+    with open(".master.json", "w") as file:
+        json.dump(master_pass, file)
+    return Vault(master_pass), master_pass
+
 
 def menu(vault):
     while True:
@@ -101,16 +130,37 @@ def list_services(vault):
 def add_password(vault):
     click.clear()
     service = click.prompt("Enter the service")
+    if service in vault.passwords:
+        click.secho("Service already exists", fg="red")
+        click.pause()
+        return
     username = click.prompt("Enter the username")
-    password = click.prompt("Enter the password", hide_input=True)
+    click.echo("1. Enter the password")
+    click.echo("2. Generate a strong password")
+    while True:
+        match click.getchar():
+            case "1":
+                password = click.prompt("Enter the password", hide_input=True)
+                break
+            case "2":
+                password = "StrongPassword123!"
+                click.secho(f"Generated password: {password}", fg="green")
+                break
+            case _:
+                click.secho("Invalid option", fg="red")
+
     vault.add_password(service, username, password)
-    with open("vault.json", "w") as file:
+    with open(".vault.json", "w") as file:
         json.dump(vault.passwords, file, indent=4)
     click.pause()
 
 def get_password(vault):
     click.clear()
     service = click.prompt("Enter the service")
+    if service not in vault.passwords:
+        click.secho("Service not found", fg="red")
+        click.pause()
+        return
     passw = vault.get_password(service)
     click.clear()
     click.secho(f"Service: {service}", bold=True)
@@ -119,7 +169,7 @@ def get_password(vault):
     click.pause()
 
 def authenticate(vault):
-    master_key = input("Enter the master key: ")
+    master_key = click.prompt("Enter your master key", hide_input=True)
     return vault.authenticate(master_key)
 
 if __name__ == '__main__':
