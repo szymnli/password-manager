@@ -1,27 +1,24 @@
 import click, json
 
+
 class Vault:
-    def __init__(self, master_key, passwords = {}):
+    def __init__(self, master_key, passwords={}):
         self.master_key = master_key
         self.passwords = passwords
 
-
     def add_password(self, service, username, password):
-        self.passwords[service] = {
-            "Username": username,
-            "Password": password
-        }
+        self.passwords[service] = {"Username": username, "Password": password}
 
     def get_password(self, service):
         return self.passwords[service]
-    
+
     def authenticate(self, value):
         return value == self.master_key
-    
+
     @property
     def master_key(self):
         return self._master_key
-    
+
     @master_key.setter
     def master_key(self, value):
         self._master_key = value
@@ -29,15 +26,15 @@ class Vault:
     @property
     def passwords(self):
         return self._passwords
-    
+
     @passwords.setter
     def passwords(self, value):
         self._passwords = value
-    
+
     @property
     def username(self):
         return self._username
-    
+
     @username.setter
     def username(self, value):
         self._username = value
@@ -45,22 +42,14 @@ class Vault:
     @property
     def password(self):
         return self._password
-    
+
     @password.setter
     def password(self, value):
         self._password = value
 
+
 def main():
     click.clear()
-    # master_pass = "1234"
-    # print("Welcome to the password manager")
-
-    # try:
-    #     with open(".vault.json") as file:
-    #         passwords = json.load(file)
-    #         vault = Vault(master_pass, passwords)
-    # except FileNotFoundError:
-    #     vault = Vault(master_pass)
 
     vault = start()
 
@@ -69,6 +58,7 @@ def main():
         menu(vault)
     else:
         print("Not authenticated")
+
 
 def start():
     click.clear()
@@ -89,6 +79,7 @@ def start():
             json.dump({}, file)
 
     return vault
+
 
 def first_time():
     master_pass = click.prompt("Create your master password", hide_input=True)
@@ -121,11 +112,17 @@ def menu(vault):
                 click.secho("\nInvalid option", fg="red")
                 click.pause()
 
+
 def list_services(vault):
     click.clear()
+    if not vault.passwords:
+        click.secho("No services found", fg="red")
+        click.pause()
+        return
     for i, service in enumerate(vault.passwords):
         click.echo(f"{i+1}. {service}")
     click.pause()
+
 
 def add_password(vault):
     click.clear()
@@ -152,7 +149,10 @@ def add_password(vault):
     vault.add_password(service, username, password)
     with open(".vault.json", "w") as file:
         json.dump(vault.passwords, file, indent=4)
-    click.pause()
+    click.pause(
+        info=f"\n{click.style('Password added successfully!', fg="green")} \nPress any key to continue..."
+    )
+
 
 def get_password(vault):
     click.clear()
@@ -168,9 +168,11 @@ def get_password(vault):
     click.echo(f"Password: {passw['Password']}")
     click.pause()
 
+
 def authenticate(vault):
     master_key = click.prompt("Enter your master key", hide_input=True)
     return vault.authenticate(master_key)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()
