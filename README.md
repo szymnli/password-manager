@@ -82,7 +82,7 @@ Services
 5. Usos
 6. CS50
 0. Go back
-Choose a service to view details [1-5]:
+Choose a service to view details [1-6]:
 ```
 #### Service menu function
 Once accessed user is shown a list of previously mentioned available actions and a prompt to choose any of them.
