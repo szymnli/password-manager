@@ -317,8 +317,9 @@ def authenticate(vault):
 
 
 def password_generator(vault, length: int):
-    password = ''.join(random.choice(string.printable) for _ in range(length))
+    password = "".join(random.choice(string.printable) for _ in range(length))
     return cryptmoji.encrypt(password, key=vault.master_key)
+
 
 if __name__ == "__main__":
     main()
