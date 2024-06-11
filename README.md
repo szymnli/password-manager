@@ -104,4 +104,4 @@ Library called `click` was chosen to create the CLI, because of the ease of use 
 For encryption and decryption the previously mentioned library `cryptmoji` was used. It was chosen because it seemed like a fun spin on encryption that is rarely used.
 
 #### Storing the vault
-The vaults are stored locally and not, for example in a cloud based database, due to this being a small project and there not being any plans for future scaling or publishing
+The vaults are stored locally and not, for example in a cloud based database, due to this being a small project and there not being any plans for future scaling or publishing.
