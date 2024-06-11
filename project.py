@@ -1,10 +1,4 @@
-import click, json, clipboard
-"""
-TODO:
-- Implement password generator
-- password encryption
-- password decryption
-"""
+import click, json, clipboard, cryptmoji, random, string
 
 
 class Vault:
@@ -99,11 +93,12 @@ def first_time():
         fg="yellow",
         italic=True,
     )
-    master_pass = click.prompt(
+    master_pass: str = click.prompt(
         "Create your master password", hide_input=True, confirmation_prompt=True
     )
     click.clear()
     with open(".master.json", "w") as file:
+        master_pass = cryptmoji.encrypt(master_pass)
         json.dump(master_pass, file)
     return Vault(master_pass), master_pass
 
@@ -150,11 +145,16 @@ def service_menu(vault, service):
         match option:
             case "1":
                 click.secho(
-                    f"\nPassword: {vault.passwords[service]['Password']}", fg="yellow"
+                    f"\nPassword: {cryptmoji.decrypt(vault.passwords[service]['Password'], key=vault.master_key)}",
+                    fg="yellow",
                 )
                 click.pause()
             case "2":
-                clipboard.copy(vault.passwords[service]["Password"])
+                clipboard.copy(
+                    cryptmoji.decrypt(
+                        vault.passwords[service]["Password"], key=vault.master_key
+                    )
+                )
                 click.secho("\nPassword copied to clipboard!", fg="yellow")
                 click.pause()
             case "3":
@@ -236,14 +236,23 @@ def add_password(vault, _service=None):
                 )
                 break
             case "2":
-                password = "StrongPassword123!"
+                length = click.prompt(
+                    "Enter the length of the password",
+                    type=click.IntRange(8, 32),
+                    default="8-32",
+                    show_default=True,
+                )
+                password = password_generator(vault, length)
                 click.secho(
                     f"Generated password: {password}", fg="green"
                 )  # TODO: Implement password generator
+                clipboard.copy(cryptmoji.decrypt(password, key=vault.master_key))
+                click.secho("Password copied to clipboard", fg="yellow")
                 break
             case _:
                 click.secho("Invalid option", fg="red")
 
+    password = cryptmoji.encrypt(password, key=vault.master_key)
     vault.add_password(service, username, password)
     with open(".vault.json", "w") as file:
         json.dump(vault.passwords, file, indent=4)
@@ -257,17 +266,44 @@ def get_password(vault):
     click.secho("Get password", fg="magenta")
     if vault.passwords:
         while True:
+            click.secho("Enter 0 to go back", fg="blue")
             service = click.prompt("Enter the service")
-            if service not in vault.passwords:
+            if service == "0":
+                break
+            elif service not in vault.passwords:
                 click.secho("Service not found", fg="red")
             else:
                 break
+        if service == "0":
+            return
         passw = vault.get_password(service)
-        click.clear()
-        click.secho(service, fg="magenta")
-        click.echo(f"Username: {passw['Username']}")
-        click.echo(f"Password: {passw['Password']}")
-        click.pause()
+        while True:
+            click.clear()
+            click.secho(service, fg="magenta")
+            click.echo(f"Username: {passw['Username']}")
+            click.echo(f"Password: {passw['Password']}")
+            click.echo("1. Copy to clipboard")
+            click.echo("2. Show password")
+            click.secho("0. Go back", fg="blue")
+            match click.getchar():
+                case "1":
+                    clipboard.copy(
+                        cryptmoji.decrypt(passw["Password"], key=vault.master_key)
+                    )
+                    click.secho("Password copied to clipboard", fg="yellow")
+                    click.pause()
+                case "2":
+                    click.secho(
+                        f"Password: {cryptmoji.decrypt(passw['Password'], key=vault.master_key)}",
+                        fg="yellow",
+                    )
+                    click.pause()
+                case "0":
+                    break
+                case _:
+                    click.secho("Invalid option", fg="red")
+                    click.pause()
+
     else:
         click.secho("No services found", fg="red")
         click.pause()
@@ -276,8 +312,13 @@ def get_password(vault):
 
 def authenticate(vault):
     master_key = click.prompt("Enter your master key", hide_input=True)
+    master_key = cryptmoji.encrypt(master_key)
     return vault.authenticate(master_key)
 
+
+def password_generator(vault, length: int):
+    password = ''.join(random.choice(string.printable) for _ in range(length))
+    return cryptmoji.encrypt(password, key=vault.master_key)
 
 if __name__ == "__main__":
     main()
