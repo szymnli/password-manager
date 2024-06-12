@@ -345,11 +345,12 @@ def empty_confirm(vault):
 
 
 def empty_vault(vault):
+    vault.passwords = {}
     os.remove(".vault.json")
     with open(".vault.json", "w") as file:
         json.dump({}, file)
     click.secho("Vault emptied successfully", fg="green")
-    return Vault(vault.master_key)
+    return Vault(vault.master_key, {})
 
 
 if __name__ == "__main__":
