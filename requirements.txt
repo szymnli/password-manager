@@ -4,3 +4,4 @@ clipboard
 cryptmoji
 random
 string
+os

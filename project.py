@@ -1,10 +1,13 @@
-import click, json, clipboard, cryptmoji, random, string
+import click, json, clipboard, cryptmoji, random, string, os
 
 
 class Vault:
     def __init__(self, master_key, passwords={}):
         self.master_key = master_key
         self.passwords = passwords
+
+    def __str__(self):
+        return f"Vault({self.master_key}, {self.passwords})"
 
     def add_password(self, service, username, password):
         self.passwords[service] = {"Username": username, "Password": password}
@@ -110,6 +113,7 @@ def menu(vault):
         click.echo("1. Add password")
         click.echo("2. Get password")
         click.echo("3. List services")
+        click.echo("4. Empty your vault")
         click.secho("0. Exit", fg="blue")
         click.secho("Enter an option: ", nl=False, fg="blue")
         option = click.getchar()
@@ -121,6 +125,8 @@ def menu(vault):
                 get_password(vault)
             case "3":
                 list_services(vault)
+            case "4":
+                vault = empty_confirm(vault)
             case "0":
                 click.clear()
                 break
@@ -319,6 +325,31 @@ def authenticate(vault):
 def password_generator(vault, length: int):
     password = "".join(random.choice(string.printable) for _ in range(length))
     return cryptmoji.encrypt(password, key=vault.master_key)
+
+
+def empty_confirm(vault):
+    click.clear()
+    click.secho("Are you sure you want to delete the vault?", fg="red")
+    click.echo("1. Yes")
+    click.echo("2. No")
+    while True:
+        match click.getchar():
+            case "1":
+                vault = empty_vault(vault)
+                click.pause()
+                return vault
+            case "2":
+                return vault
+            case _:
+                click.secho("Invalid option", fg="red")
+
+
+def empty_vault(vault):
+    os.remove(".vault.json")
+    with open(".vault.json", "w") as file:
+        json.dump({}, file)
+    click.secho("Vault emptied successfully", fg="green")
+    return Vault(vault.master_key)
 
 
 if __name__ == "__main__":
